@@ -23,8 +23,3 @@ bucket_name = "media-gallery-bucket"
 bucket = "./dist"
 include = ["**/*"]
 exclude = ["**/*.map"]
-
-[build.upload]
-format = "modules"
-dir = "dist"
-main = "./worker/index.ts" 
