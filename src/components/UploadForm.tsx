@@ -4,10 +4,6 @@ import { X } from 'lucide-react';
 import '../styles/UploadForm.css';
 import type { MediaItem } from '../worker';
 
-interface FileWithPreview extends File {
-  preview?: string;
-}
-
 interface FileGroup {
   id: string;
   files: MediaItem[];
@@ -22,24 +18,8 @@ interface EditingPrompt {
   prompt: string;
 }
 
-const AI_MODELS = [
-  { name: 'bing image creator', icon: '🖼️' },
-  { name: 'ideogram', icon: '✍️' },
-  { name: 'Midjourney', icon: '🎨' },
-  { name: 'Runway', icon: '🎥' },
-  { name: 'Flux', icon: '🌀' },
-  { name: 'SD', icon: '🤖' },
-  { name: 'pixelverse', icon: '🌌' },
-  { name: 'kling', icon: '👾' },
-  { name: 'luma', icon: '✨' },
-  { name: 'wan2.1', icon: '🪐' }
-];
-
 const UploadForm: React.FC = () => {
   const { fileGroups, addFileGroup, deleteFileGroup, updatePrompt } = useMedia();
-  const [currentPrompt, setCurrentPrompt] = useState('');
-  const [selectedAiModel, setSelectedAiModel] = useState<string>('');
-  const [customAiModel, setCustomAiModel] = useState<string>('');
   const [editingPrompt, setEditingPrompt] = useState<EditingPrompt | null>(null);
   const [dragActive, setDragActive] = useState(false);
 
@@ -100,10 +80,9 @@ const UploadForm: React.FC = () => {
       const newGroup: FileGroup = {
         id: crypto.randomUUID(),
         files: mediaFiles,
-        prompt: currentPrompt || '',
+        prompt: '',
         timestamp: Date.now(),
-        isExpanded: true,
-        aiModel: selectedAiModel === 'custom' ? customAiModel : selectedAiModel
+        isExpanded: true
       };
       addFileGroup(newGroup);
     }
