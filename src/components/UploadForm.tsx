@@ -38,12 +38,10 @@ const AI_MODELS = [
 const UploadForm: React.FC = () => {
   const { fileGroups, addFileGroup, deleteFileGroup, updatePrompt } = useMedia();
   const [currentPrompt, setCurrentPrompt] = useState('');
-  const [pendingFiles, setPendingFiles] = useState<FileWithPreview[]>([]);
   const [selectedAiModel, setSelectedAiModel] = useState<string>('');
   const [customAiModel, setCustomAiModel] = useState<string>('');
   const [editingPrompt, setEditingPrompt] = useState<EditingPrompt | null>(null);
   const [dragActive, setDragActive] = useState(false);
-  const itemsPerPage = 9;
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -125,57 +123,6 @@ const UploadForm: React.FC = () => {
     }
   };
 
-  const handleFileUpload = (event: ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files) {
-      const files = Array.from(event.target.files).map(file => {
-        const preview = URL.createObjectURL(file);
-        return Object.assign(file, { preview });
-      });
-      setPendingFiles(prev => [...prev, ...files]);
-    }
-  };
-
-  const handleRemovePendingFile = (index: number) => {
-    setPendingFiles(prev => {
-      const file = prev[index];
-      if (file.preview) {
-        URL.revokeObjectURL(file.preview);
-      }
-      return prev.filter((_, i) => i !== index);
-    });
-  };
-
-  const handleSave = async () => {
-    if (pendingFiles.length > 0) {
-      const processedFiles = await Promise.all(
-        pendingFiles.map(createMediaItem)
-      );
-
-      const newGroup: FileGroup = {
-        id: crypto.randomUUID(),
-        files: processedFiles,
-        prompt: currentPrompt.trim(),
-        timestamp: Date.now(),
-        isExpanded: false,
-        aiModel: selectedAiModel === 'custom' ? customAiModel.trim() : selectedAiModel
-      };
-      
-      addFileGroup(newGroup);
-      
-      // 清理 URL objects
-      pendingFiles.forEach(file => {
-        if (file.preview) {
-          URL.revokeObjectURL(file.preview);
-        }
-      });
-      
-      setPendingFiles([]);
-      setCurrentPrompt('');
-      setSelectedAiModel('');
-      setCustomAiModel('');
-    }
-  };
-
   const handleDeleteGroup = (groupId: string) => {
     if (window.confirm('確定要刪除這個組嗎？')) {
       deleteFileGroup(groupId);
@@ -191,7 +138,7 @@ const UploadForm: React.FC = () => {
           files: group.files.filter((_, index) => index !== fileIndex)
         };
         addFileGroup(updatedGroup);
-        deleteFileGroup(groupId); // 刪除原始群組
+        deleteFileGroup(groupId);
       }
     }
   };
@@ -227,7 +174,7 @@ const UploadForm: React.FC = () => {
         <p className="text-xs text-gray-500 mt-1">支持圖片和視頻文件</p>
       </div>
 
-      {displayedGroups.map((group, index) => (
+      {displayedGroups.map((group) => (
         <div key={group.id} className="bg-white rounded-lg shadow-sm border p-4">
           <div className="flex items-start justify-between mb-4">
             <div className="flex-1 min-w-0">

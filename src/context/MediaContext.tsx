@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
+import { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import type { MediaItem } from '../worker';
 
 interface MediaGroup {
@@ -88,8 +88,6 @@ export function MediaProvider({ children }: { children: ReactNode }) {
       if (!response.ok) {
         throw new Error('Failed to create media group');
       }
-
-      const result = await response.json() as { id: string };
       
       // 重新加載媒體組列表
       const groupResponse = await fetch(`${API_URL}/api/media-groups`);
