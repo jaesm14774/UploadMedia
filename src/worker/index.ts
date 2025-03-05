@@ -58,11 +58,22 @@ app.use('/api/*', cors())
 app.route('/api', app)
 
 // 靜態資源處理
-app.get('*', serveStatic())
+app.get('/*', serveStatic())
 
 // 如果靜態資源未找到，返回 index.html
 app.get('*', async (c) => {
-  return c.redirect('/')
+  try {
+    return await c.env.BUCKET.get('dist/index.html')
+      .then(response => {
+        if (!response) throw new Error('index.html not found')
+        return new Response(response.body, {
+          headers: { 'Content-Type': 'text/html' }
+        })
+      })
+  } catch (error) {
+    console.error('Error serving index.html:', error)
+    return new Response('Internal Server Error', { status: 500 })
+  }
 })
 
 // 初始化資料庫表
