@@ -26,8 +26,8 @@ type Bindings = {
 const app = new Hono<{ Bindings: Bindings }>()
 
 // CORS 和錯誤處理中間件
-app.use('*', cors())
-app.use('*', async (c: Context, next: Next) => {
+app.use('/api/*', cors())
+app.use('/api/*', async (c: Context, next: Next) => {
   try {
     await next()
   } catch (error: unknown) {
@@ -136,7 +136,7 @@ app.post('/api/media-groups', async (c) => {
       }
 
       // 將文件數據轉換為 Buffer 並上傳到 R2
-      const fileData = Buffer.from(file.data.split(',')[1], 'base64')
+      const fileData = Uint8Array.from(atob(file.data.split(',')[1]), c => c.charCodeAt(0))
       await c.env.BUCKET.put(r2Key, fileData, {
         httpMetadata: {
           contentType: file.type

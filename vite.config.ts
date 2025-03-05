@@ -12,11 +12,7 @@ export default defineConfig({
     outDir: 'dist',
     rollupOptions: {
       input: {
-        main: './index.html',
-        worker: './src/worker/index.ts'
-      },
-      output: {
-        entryFileNames: '[name].js'
+        main: './index.html'
       }
     }
   }
