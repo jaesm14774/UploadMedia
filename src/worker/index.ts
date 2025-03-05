@@ -58,12 +58,12 @@ app.use('/api/*', cors())
 app.route('/api', app)
 
 // 靜態資源處理
-app.get('/*', serveStatic())
+app.get('/*', serveStatic({ root: './dist' }))
 
 // 如果靜態資源未找到，返回 index.html
 app.get('*', async (c) => {
   try {
-    return await c.env.BUCKET.get('dist/index.html')
+    return await c.env.BUCKET.get('index.html')
       .then(response => {
         if (!response) throw new Error('index.html not found')
         return new Response(response.body, {
@@ -282,4 +282,4 @@ app.patch('/api/media-groups/:groupId', async (c) => {
   }
 })
 
-export default app 
+export default app
