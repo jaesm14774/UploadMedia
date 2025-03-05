@@ -28,13 +28,17 @@
     "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
     "@esbuild-plugins/node-modules-polyfill": "^0.2.2",
     "blake3-wasm": "^2.1.5",
-    "esbuild": "^0.17.19",
-    "miniflare": "^3.20250214.2",
+    "esbuild": "^0.25.0",
+    "miniflare": "^3.0.2",
     "path-to-regexp": "^6.3.0",
     "sharp": "^0.33.5",
     "typescript": "^5.2.2",
     "vite": "^5.1.0",
     "wrangler": "^3.112.0",
-    "undici-types": "^6.19.8"
+    "undici-types": "^6.21.0",
+    "@rollup/plugin-inject": "^5.0.5",
+    "@jridgewell/sourcemap-codec": "^1.4.15",
+    "cookie": "^0.7.1",
+    "youch": "^3.3.3"
   }
 }
