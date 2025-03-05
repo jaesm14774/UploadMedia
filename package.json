@@ -12,20 +12,29 @@
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "hono": "^4.0.0",
-    "@hono/node-server": "^1.8.2"
+    "hono": "^4.7.4",
+    "@hono/node-server": "^1.13.8",
+    "@cloudflare/kv-asset-handler": "^0.3.4"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20240208.0",
+    "@cloudflare/workers-types": "^4.20250303.0",
     "@types/react": "^18.2.55",
     "@types/react-dom": "^18.2.19",
-    "@types/node": "^20.11.24",
+    "@types/node": "^20.17.23",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.17",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
+    "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
+    "@esbuild-plugins/node-modules-polyfill": "^0.2.2",
+    "blake3-wasm": "^2.1.5",
+    "esbuild": "^0.17.19",
+    "miniflare": "^3.20250214.2",
+    "path-to-regexp": "^6.3.0",
+    "sharp": "^0.33.5",
     "typescript": "^5.2.2",
     "vite": "^5.1.0",
-    "wrangler": "^3.28.0"
+    "wrangler": "^3.112.0",
+    "undici-types": "^6.19.8"
   }
 }

@@ -2,20 +2,14 @@ name = "media-prompt-gallery"
 main = "src/worker/index.ts"
 compatibility_date = "2024-03-05"
 
-# 外部依賴配置
+# 構建配置
 [build]
-command = "npm install && npm run build"
+command = "npm run build"
 
 [build.upload]
 format = "modules"
-main = "./src/worker/index.ts"
-
-[[build.upload.rules]]
-type = "ESModule"
-globs = ["**/*.js", "**/*.ts"]
-
-[package]
-dependencies = ["hono"]
+dir = "dist"
+main = "./worker.js"
 
 # D1 資料庫配置
 [[d1_databases]]
@@ -28,6 +22,8 @@ database_id = "7cb8b0fb-d8a9-4b57-a04d-65b793cade8c"
 binding = "BUCKET"
 bucket_name = "media-gallery-bucket"
 
-# 頁面配置
+# 靜態資源配置
 [site]
-bucket = "./dist" 
+bucket = "./dist"
+include = ["**/*"]
+exclude = ["**/*.map", "**/*.ts"] 
