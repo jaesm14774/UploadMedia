@@ -21,14 +21,8 @@ bucket_name = "media-gallery-bucket"
 # 靜態資源配置
 [site]
 bucket = "./dist"
-entry-point = "src/worker/index.ts"
 include = ["**/*"]
 exclude = ["**/*.map", "**/*.ts"]
 
 [build.upload]
-format = "modules"
-main = "./worker/index.ts"
-dir = "dist"
-
-[pages]
-pages_build_output_dir = "dist" 
+format = "modules" 

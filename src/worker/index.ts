@@ -2,6 +2,7 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { HTTPException } from 'hono/http-exception'
+import { serveStatic } from 'hono/cloudflare-pages'
 import type { Context, Next } from 'hono'
 
 export interface MediaItem {
@@ -25,18 +26,43 @@ type Bindings = {
 
 const app = new Hono<{ Bindings: Bindings }>()
 
-// CORS 和錯誤處理中間件
-app.use('/api/*', cors())
-app.use('/api/*', async (c: Context, next: Next) => {
+// 全局錯誤處理中間件
+app.use('*', async (c: Context, next: Next) => {
   try {
-    await next()
+    return await next()
   } catch (error: unknown) {
+    console.error('Global error:', error)
     if (error instanceof HTTPException) {
       return error.getResponse()
     }
-    console.error('Unexpected error:', error)
-    return c.json({ error: 'Internal Server Error' }, 500)
+    if (error instanceof Error) {
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      })
+      return c.json({ 
+        error: 'Internal Server Error',
+        message: error.message,
+        type: error.name
+      }, 500)
+    }
+    return c.json({ error: 'Unknown Error' }, 500)
   }
+})
+
+// CORS 中間件
+app.use('/api/*', cors())
+
+// API 路由
+app.route('/api', app)
+
+// 靜態資源處理
+app.get('*', serveStatic())
+
+// 如果靜態資源未找到，返回 index.html
+app.get('*', async (c) => {
+  return c.redirect('/')
 })
 
 // 初始化資料庫表
