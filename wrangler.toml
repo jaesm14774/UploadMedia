@@ -1,0 +1,18 @@
+name = "media-prompt-gallery"
+main = "src/worker/index.ts"
+compatibility_date = "2024-03-05"
+
+# D1 資料庫配置
+[[d1_databases]]
+binding = "DB"
+database_name = "media_gallery_db"
+database_id = "7cb8b0fb-d8a9-4b57-a04d-65b793cade8c"
+
+# R2 儲存桶配置
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "media-gallery-bucket"
+
+# 頁面配置
+[site]
+bucket = "./dist" 
