@@ -9,8 +9,8 @@ interface FileWithPreview extends File {
 }
 
 interface FileGroup {
-  files: any[];
-  coverImage: string | ArrayBuffer | null;
+  id: string;
+  files: MediaItem[];
   prompt: string;
   timestamp: number;
   isExpanded: boolean;
@@ -36,10 +36,9 @@ const AI_MODELS = [
 ];
 
 const UploadForm: React.FC = () => {
-  const { fileGroups, addFileGroup, deleteFileGroup, updatePrompt, deleteFile } = useMedia();
+  const { fileGroups, addFileGroup, deleteFileGroup, updatePrompt } = useMedia();
   const [currentPrompt, setCurrentPrompt] = useState('');
   const [pendingFiles, setPendingFiles] = useState<FileWithPreview[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
   const [selectedAiModel, setSelectedAiModel] = useState<string>('');
   const [customAiModel, setCustomAiModel] = useState<string>('');
   const [editingPrompt, setEditingPrompt] = useState<EditingPrompt | null>(null);
@@ -72,36 +71,43 @@ const UploadForm: React.FC = () => {
     }
   };
 
-  const handleFiles = async (files: File[]) => {
-    const mediaFiles: MediaItem[] = [];
-
-    for (const file of files) {
-      if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
-        continue;
-      }
-
+  const createMediaItem = async (file: File): Promise<MediaItem> => {
+    return new Promise((resolve) => {
       const reader = new FileReader();
-      await new Promise<void>((resolve) => {
-        reader.onload = () => {
-          const result = reader.result as string;
-          mediaFiles.push({
-            id: crypto.randomUUID(),
-            name: file.name,
-            type: file.type,
-            data: result,
-            preview: result,
-            prompt: '',
-            timestamp: Date.now(),
-            isGroup: false
-          });
-          resolve();
-        };
-        reader.readAsDataURL(file);
-      });
-    }
+      reader.onload = () => {
+        const result = reader.result as string;
+        resolve({
+          id: crypto.randomUUID(),
+          name: file.name,
+          type: file.type,
+          data: result,
+          preview: result,
+          prompt: '',
+          timestamp: Date.now(),
+          isGroup: false
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFiles = async (files: File[]) => {
+    const mediaFiles = await Promise.all(
+      Array.from(files)
+        .filter(file => file.type.startsWith('image/') || file.type.startsWith('video/'))
+        .map(createMediaItem)
+    );
 
     if (mediaFiles.length > 0) {
-      addFileGroup(mediaFiles, '');
+      const newGroup: FileGroup = {
+        id: crypto.randomUUID(),
+        files: mediaFiles,
+        prompt: currentPrompt || '',
+        timestamp: Date.now(),
+        isExpanded: true,
+        aiModel: selectedAiModel === 'custom' ? customAiModel : selectedAiModel
+      };
+      addFileGroup(newGroup);
     }
   };
 
@@ -141,43 +147,17 @@ const UploadForm: React.FC = () => {
 
   const handleSave = async () => {
     if (pendingFiles.length > 0) {
-      // 随机选择一个文件作为封面
-      const coverIndex = Math.floor(Math.random() * pendingFiles.length);
-      const coverFile = pendingFiles[coverIndex];
-      
-      // 将所有文件转换为Base64
-      const processedFiles = await Promise.all(pendingFiles.map(async (file) => {
-        return new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            resolve({
-              name: file.name,
-              type: file.type,
-              data: reader.result,
-              preview: file.preview
-            });
-          };
-          reader.readAsDataURL(file);
-        });
-      }));
-
-      // 确定使用哪个AI模型
-      let aiModel = selectedAiModel;
-      if (selectedAiModel === 'custom' && customAiModel.trim()) {
-        aiModel = customAiModel.trim();
-      }
+      const processedFiles = await Promise.all(
+        pendingFiles.map(createMediaItem)
+      );
 
       const newGroup: FileGroup = {
+        id: crypto.randomUUID(),
         files: processedFiles,
-        coverImage: await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.readAsDataURL(coverFile);
-        }),
         prompt: currentPrompt.trim(),
         timestamp: Date.now(),
         isExpanded: false,
-        aiModel: aiModel || undefined
+        aiModel: selectedAiModel === 'custom' ? customAiModel.trim() : selectedAiModel
       };
       
       addFileGroup(newGroup);
@@ -196,15 +176,27 @@ const UploadForm: React.FC = () => {
     }
   };
 
-  const handleDeleteGroup = (index: number) => {
+  const handleDeleteGroup = (groupId: string) => {
     if (window.confirm('確定要刪除這個組嗎？')) {
-      deleteFileGroup(index);
+      deleteFileGroup(groupId);
     }
   };
 
-  const totalPages = Math.ceil(fileGroups.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const displayedGroups = fileGroups.slice(startIndex, startIndex + itemsPerPage);
+  const handleDeleteFile = (groupId: string, fileIndex: number) => {
+    if (window.confirm('確定要刪除這個文件嗎？')) {
+      const group = fileGroups.find(g => g.id === groupId);
+      if (group) {
+        const updatedGroup: FileGroup = {
+          ...group,
+          files: group.files.filter((_, index) => index !== fileIndex)
+        };
+        addFileGroup(updatedGroup);
+        deleteFileGroup(groupId); // 刪除原始群組
+      }
+    }
+  };
+
+  const displayedGroups = fileGroups;
 
   return (
     <div className="space-y-6">
@@ -276,7 +268,7 @@ const UploadForm: React.FC = () => {
               )}
             </div>
             <button
-              onClick={() => handleDeleteGroup(index)}
+              onClick={() => handleDeleteGroup(group.id)}
               className="ml-4 text-gray-400 hover:text-gray-500"
             >
               <X size={20} />
@@ -302,7 +294,7 @@ const UploadForm: React.FC = () => {
                   )}
                 </div>
                 <button
-                  onClick={() => deleteFile(index, fileIndex)}
+                  onClick={() => handleDeleteFile(group.id, fileIndex)}
                   className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                 >
                   <X size={14} />

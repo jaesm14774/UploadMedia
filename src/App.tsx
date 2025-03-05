@@ -1,4 +1,3 @@
-import { Database, Image, Video } from 'lucide-react';
 import MediaGallery from './components/MediaGallery';
 import UploadForm from './components/UploadForm';
 import { MediaProvider } from './context/MediaContext';

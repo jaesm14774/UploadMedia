@@ -14,7 +14,7 @@ interface MediaContextType {
   mediaGroups: MediaGroup[];
   fileGroups: MediaGroup[];
   addMediaGroup: (files: MediaItem[], prompt: string, aiModel?: string) => Promise<void>;
-  addFileGroup: (files: MediaItem[], prompt: string) => void;
+  addFileGroup: (group: MediaGroup) => void;
   toggleGroupExpansion: (index: number) => void;
   deleteMediaGroup: (id: string) => Promise<void>;
   deleteFileGroup: (id: string) => void;
@@ -105,15 +105,8 @@ export function MediaProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const addFileGroup = (files: MediaItem[], prompt: string) => {
-    const newGroup: MediaGroup = {
-      id: Date.now().toString(),
-      prompt,
-      timestamp: Date.now(),
-      isExpanded: true,
-      files
-    };
-    setFileGroups(prev => [...prev, newGroup]);
+  const addFileGroup = (group: MediaGroup) => {
+    setFileGroups(prev => [...prev, group]);
   };
 
   const toggleGroupExpansion = (index: number) => {
