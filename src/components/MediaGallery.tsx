@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Pencil, Trash2, Check, X } from 'lucide-react';
 import { useMedia } from '../context/MediaContext';
-import { MediaItem } from '../types';
+import type { MediaItem } from '../worker';
 
 const MediaGallery: React.FC = () => {
   const { mediaItems, updatePrompt, deleteMediaItem } = useMedia();
@@ -10,7 +10,7 @@ const MediaGallery: React.FC = () => {
 
   const handleEdit = (item: MediaItem) => {
     setEditingId(item.id);
-    setEditPrompt(item.prompt);
+    setEditPrompt(item.prompt || '');
   };
 
   const handleSave = (id: string) => {
@@ -22,14 +22,14 @@ const MediaGallery: React.FC = () => {
     setEditingId(null);
   };
 
-  const formatDate = (date: Date) => {
+  const formatDate = (timestamp: number) => {
     return new Intl.DateTimeFormat('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
-    }).format(date);
+    }).format(new Date(timestamp));
   };
 
   if (mediaItems.length === 0) {
@@ -49,15 +49,15 @@ const MediaGallery: React.FC = () => {
         {mediaItems.map(item => (
           <div key={item.id} className="border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
             <div className="aspect-video bg-gray-100 flex items-center justify-center overflow-hidden">
-              {item.type === 'image' ? (
+              {item.type.startsWith('image/') ? (
                 <img 
-                  src={item.url} 
+                  src={`/api/media/${item.id}`}
                   alt={`Media ${item.id}`}
                   className="w-full h-full object-contain"
                 />
               ) : (
                 <video 
-                  src={item.url} 
+                  src={`/api/media/${item.id}`}
                   controls
                   className="w-full h-full object-contain"
                 />
@@ -67,7 +67,7 @@ const MediaGallery: React.FC = () => {
             <div className="p-4">
               <div className="flex justify-between items-start mb-2">
                 <span className="text-xs text-gray-500">
-                  {formatDate(item.createdAt)}
+                  {formatDate(item.timestamp)}
                 </span>
                 <div className="flex space-x-2">
                   {editingId !== item.id && (

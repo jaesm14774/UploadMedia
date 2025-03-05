@@ -4,7 +4,7 @@ import { cors } from 'hono/cors'
 import { HTTPException } from 'hono/http-exception'
 import type { Context, Next } from 'hono'
 
-interface MediaItem {
+export interface MediaItem {
   id: string
   name: string
   type: string
@@ -15,6 +15,7 @@ interface MediaItem {
   timestamp: number
   isGroup: boolean
   groupId?: string
+  r2_key?: string
 }
 
 type Bindings = {
@@ -67,13 +68,13 @@ app.get('/api/media-groups', async (c) => {
     SELECT * FROM media_items 
     WHERE is_group = true 
     ORDER BY timestamp DESC
-  `).all()
+  `).all<MediaItem>()
   return c.json(results)
 })
 
 // 獲取特定組的所有媒體
-app.get('/api/media-groups/:groupId/items', async (c) => {
-  const groupId = c.param('groupId')
+app.get('/api/media-groups/:groupId', async (c) => {
+  const { groupId } = c.req.param()
   if (!groupId) {
     throw new HTTPException(400, { message: 'Group ID is required' })
   }
@@ -81,7 +82,7 @@ app.get('/api/media-groups/:groupId/items', async (c) => {
   const { results } = await c.env.DB.prepare(`
     SELECT * FROM media_items 
     WHERE group_id = ?
-  `).bind(groupId).all()
+  `).bind(groupId).all<MediaItem>()
 
   if (!results.length) {
     throw new HTTPException(404, { message: 'Media group not found' })
@@ -92,7 +93,11 @@ app.get('/api/media-groups/:groupId/items', async (c) => {
 
 // 上傳媒體組
 app.post('/api/media-groups', async (c) => {
-  const data = await c.req.json()
+  const data = await c.req.json<{
+    files: MediaItem[]
+    prompt: string
+    aiModel?: string
+  }>()
   const { files, prompt, aiModel } = data
 
   if (!files || !Array.isArray(files) || files.length === 0) {
@@ -166,7 +171,7 @@ app.post('/api/media-groups', async (c) => {
 
 // 刪除媒體組
 app.delete('/api/media-groups/:groupId', async (c) => {
-  const groupId = c.param('groupId')
+  const { groupId } = c.req.param()
   if (!groupId) {
     throw new HTTPException(400, { message: 'Group ID is required' })
   }
@@ -179,11 +184,13 @@ app.delete('/api/media-groups/:groupId', async (c) => {
     const { results } = await c.env.DB.prepare(`
       SELECT r2_key FROM media_items 
       WHERE group_id = ? OR id = ?
-    `).bind(groupId, groupId).all()
+    `).bind(groupId, groupId).all<{ r2_key: string }>()
 
     // 從 R2 刪除所有文件
     for (const item of results) {
-      await c.env.BUCKET.delete(item.r2_key)
+      if (item.r2_key) {
+        await c.env.BUCKET.delete(item.r2_key)
+      }
     }
 
     // 從數據庫刪除所有相關記錄
@@ -210,12 +217,12 @@ app.delete('/api/media-groups/:groupId', async (c) => {
 
 // 更新媒體組的提示詞
 app.patch('/api/media-groups/:groupId', async (c) => {
-  const groupId = c.param('groupId')
+  const { groupId } = c.req.param()
   if (!groupId) {
     throw new HTTPException(400, { message: 'Group ID is required' })
   }
 
-  const { prompt } = await c.req.json()
+  const { prompt } = await c.req.json<{ prompt: string }>()
   if (!prompt) {
     throw new HTTPException(400, { message: 'Prompt is required' })
   }

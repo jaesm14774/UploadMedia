@@ -2,6 +2,7 @@ import React, { useState, ChangeEvent } from 'react';
 import { useMedia } from '../context/MediaContext';
 import { X } from 'lucide-react';
 import '../styles/UploadForm.css';
+import type { MediaItem } from '../worker';
 
 interface FileWithPreview extends File {
   preview?: string;
@@ -14,6 +15,11 @@ interface FileGroup {
   timestamp: number;
   isExpanded: boolean;
   aiModel?: string;
+}
+
+interface EditingPrompt {
+  index: string;
+  prompt: string;
 }
 
 const AI_MODELS = [
@@ -29,15 +35,89 @@ const AI_MODELS = [
   { name: 'wan2.1', icon: '🪐' }
 ];
 
-const UploadForm = () => {
-  const { fileGroups, addFileGroup, toggleGroupExpansion, deleteFileGroup, updatePrompt, deleteFile } = useMedia();
+const UploadForm: React.FC = () => {
+  const { fileGroups, addFileGroup, deleteFileGroup, updatePrompt, deleteFile } = useMedia();
   const [currentPrompt, setCurrentPrompt] = useState('');
   const [pendingFiles, setPendingFiles] = useState<FileWithPreview[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedAiModel, setSelectedAiModel] = useState<string>('');
   const [customAiModel, setCustomAiModel] = useState<string>('');
-  const [editingPrompt, setEditingPrompt] = useState<{index: number, prompt: string} | null>(null);
+  const [editingPrompt, setEditingPrompt] = useState<EditingPrompt | null>(null);
+  const [dragActive, setDragActive] = useState(false);
   const itemsPerPage = 9;
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      await handleFiles(Array.from(e.dataTransfer.files));
+    }
+  };
+
+  const handleFileInput = async (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      await handleFiles(Array.from(e.target.files));
+    }
+  };
+
+  const handleFiles = async (files: File[]) => {
+    const mediaFiles: MediaItem[] = [];
+
+    for (const file of files) {
+      if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+        continue;
+      }
+
+      const reader = new FileReader();
+      await new Promise<void>((resolve) => {
+        reader.onload = () => {
+          const result = reader.result as string;
+          mediaFiles.push({
+            id: crypto.randomUUID(),
+            name: file.name,
+            type: file.type,
+            data: result,
+            preview: result,
+            prompt: '',
+            timestamp: Date.now(),
+            isGroup: false
+          });
+          resolve();
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    if (mediaFiles.length > 0) {
+      addFileGroup(mediaFiles, '');
+    }
+  };
+
+  const handlePromptEdit = (groupId: string, currentPrompt: string) => {
+    setEditingPrompt({
+      index: groupId,
+      prompt: currentPrompt || ''
+    });
+  };
+
+  const handlePromptSave = () => {
+    if (editingPrompt) {
+      updatePrompt(editingPrompt.index, editingPrompt.prompt);
+      setEditingPrompt(null);
+    }
+  };
 
   const handleFileUpload = (event: ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
@@ -116,244 +196,122 @@ const UploadForm = () => {
     }
   };
 
+  const handleDeleteGroup = (index: number) => {
+    if (window.confirm('確定要刪除這個組嗎？')) {
+      deleteFileGroup(index);
+    }
+  };
+
   const totalPages = Math.ceil(fileGroups.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const displayedGroups = fileGroups.slice(startIndex, startIndex + itemsPerPage);
 
   return (
-    <div className="upload-container">
-      <div className="upload-section bg-white p-6 rounded-lg shadow-lg mb-8">
-        <div className="preview-grid">
-          {pendingFiles.map((file, index) => (
-            <div key={index} className="preview-item">
-              {file.type?.startsWith('image/') ? (
-                <img src={file.preview || URL.createObjectURL(file)} alt={`Preview ${index}`} />
-              ) : (
-                <video src={file.preview || URL.createObjectURL(file)} controls />
-              )}
-              <button
-                className="remove-button"
-                onClick={() => handleRemovePendingFile(index)}
-              >
-                <X size={16} />
-              </button>
-            </div>
-          ))}
-          <label className="upload-trigger">
-            <input
-              type="file"
-              multiple
-              accept="image/*,video/*"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
-            <div className="upload-placeholder">
-              <span className="text-2xl">+</span>
-              <span className="text-sm mt-2">Add Media</span>
-            </div>
-          </label>
-        </div>
-
-        <textarea 
-          value={currentPrompt}
-          onChange={(e) => setCurrentPrompt(e.target.value)}
-          placeholder="Add a description for your media..."
-          className="w-full mt-6 mb-4 p-3 border rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          rows={3}
+    <div className="space-y-6">
+      <div 
+        className={`border-2 border-dashed rounded-lg p-8 text-center ${
+          dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+        }`}
+        onDragEnter={handleDrag}
+        onDragLeave={handleDrag}
+        onDragOver={handleDrag}
+        onDrop={handleDrop}
+      >
+        <input
+          type="file"
+          multiple
+          accept="image/*,video/*"
+          onChange={handleFileInput}
+          className="hidden"
+          id="file-upload"
         />
-        
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">AI Model (Optional)</label>
-          <div className="grid grid-cols-5 gap-2 mb-2">
-            {AI_MODELS.map((model, index) => (
-              <button
-                key={index}
-                type="button"
-                onClick={() => setSelectedAiModel(model.name)}
-                className={`flex items-center justify-center p-2 rounded-md border ${selectedAiModel === model.name ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}
-              >
-                <span className="mr-1">{model.icon}</span>
-                <span className="text-xs">{model.name}</span>
-              </button>
+        <label 
+          htmlFor="file-upload"
+          className="cursor-pointer inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        >
+          選擇文件
+        </label>
+        <p className="mt-2 text-sm text-gray-600">或將文件拖放到此處</p>
+        <p className="text-xs text-gray-500 mt-1">支持圖片和視頻文件</p>
+      </div>
+
+      {displayedGroups.map((group, index) => (
+        <div key={group.id} className="bg-white rounded-lg shadow-sm border p-4">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex-1 min-w-0">
+              {editingPrompt?.index === group.id ? (
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    value={editingPrompt.prompt}
+                    onChange={(e) => setEditingPrompt({ ...editingPrompt, prompt: e.target.value })}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="輸入提示詞..."
+                  />
+                  <button
+                    onClick={handlePromptSave}
+                    className="px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600"
+                  >
+                    保存
+                  </button>
+                  <button
+                    onClick={() => setEditingPrompt(null)}
+                    className="px-3 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
+                  >
+                    取消
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <h3 className="text-lg font-medium text-gray-900 truncate">
+                    {group.prompt || "未命名組"}
+                  </h3>
+                  <button
+                    onClick={() => handlePromptEdit(group.id, group.prompt)}
+                    className="text-blue-600 hover:text-blue-800"
+                  >
+                    編輯
+                  </button>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => handleDeleteGroup(index)}
+              className="ml-4 text-gray-400 hover:text-gray-500"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {group.files.map((file, fileIndex) => (
+              <div key={file.id} className="relative group">
+                <div className="aspect-w-1 aspect-h-1 bg-gray-100 rounded-lg overflow-hidden">
+                  {file.type.startsWith('image/') ? (
+                    <img
+                      src={file.data}
+                      alt={file.name}
+                      className="object-cover w-full h-full"
+                    />
+                  ) : (
+                    <video
+                      src={file.data}
+                      className="object-cover w-full h-full"
+                      controls
+                    />
+                  )}
+                </div>
+                <button
+                  onClick={() => deleteFile(index, fileIndex)}
+                  className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X size={14} />
+                </button>
+              </div>
             ))}
           </div>
-          <div className="flex items-center mt-2">
-            <button
-              type="button"
-              onClick={() => setSelectedAiModel('custom')}
-              className={`flex items-center justify-center p-2 rounded-md border mr-2 ${selectedAiModel === 'custom' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}
-            >
-              <span className="text-xs">Custom</span>
-            </button>
-            <input
-              type="text"
-              value={customAiModel}
-              onChange={(e) => setCustomAiModel(e.target.value)}
-              placeholder="Enter custom AI model name"
-              className="flex-1 p-2 border rounded-md"
-              disabled={selectedAiModel !== 'custom'}
-            />
-          </div>
         </div>
-        
-        <button 
-          onClick={handleSave}
-          className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          disabled={!pendingFiles.length}
-        >
-          Save
-        </button>
-      </div>
-
-      <div className="gallery-grid">
-        {displayedGroups.map((group, index) => (
-          <div key={group.timestamp} className="gallery-item">
-            <div 
-              className="gallery-content"
-              onClick={() => toggleGroupExpansion(index)}
-            >
-              <img src={typeof group.coverImage === 'string' ? group.coverImage : group.files[0]?.data as string} alt="Cover" className="gallery-image" />
-              <div className="gallery-overlay">
-                <p className="gallery-prompt">{group.prompt || "No description"}</p>
-                <div className="flex justify-between items-center">
-                  <span className="gallery-count">{group.files.length} items</span>
-                  {group.aiModel && (
-                    <span className="gallery-ai-model">
-                      {AI_MODELS.find(m => m.name === group.aiModel)?.icon || '🤖'} {group.aiModel}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-            
-            {group.isExpanded && (
-              <div className="expanded-view">
-                <div className="expanded-header">
-                  <button 
-                    className="close-expanded-view"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleGroupExpansion(index + startIndex);
-                      setEditingPrompt(null);
-                    }}
-                  >
-                    <X size={24} />
-                  </button>
-                  
-                  <div className="expanded-controls">
-                    <button 
-                      className="delete-group-button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (window.confirm('Are you sure you want to delete this entire group?')) {
-                          deleteFileGroup(index + startIndex);
-                        }
-                      }}
-                      title="Delete group"
-                    >
-                      Delete Group
-                    </button>
-                  </div>
-                </div>
-                
-                <div className="expanded-prompt-section">
-                  {editingPrompt !== null && editingPrompt.index === (index + startIndex) ? (
-                    <div className="edit-prompt-container">
-                      <textarea
-                        value={editingPrompt.prompt}
-                        onChange={(e) => setEditingPrompt({...editingPrompt, prompt: e.target.value})}
-                        className="edit-prompt-textarea"
-                        rows={3}
-                      />
-                      <div className="edit-prompt-buttons">
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingPrompt(null);
-                          }}
-                          className="cancel-button"
-                        >
-                          Cancel
-                        </button>
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            updatePrompt(editingPrompt.index, editingPrompt.prompt);
-                            setEditingPrompt(null);
-                          }}
-                          className="save-button"
-                        >
-                          Save
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="prompt-display" onClick={(e) => e.stopPropagation()}>
-                      <p className="prompt-text">{group.prompt || "No description"}</p>
-                      <button 
-                        className="edit-prompt-button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingPrompt({index: index + startIndex, prompt: group.prompt});
-                        }}
-                      >
-                        Edit Description
-                      </button>
-                    </div>
-                  )}
-                </div>
-                
-                <div className="expanded-grid">
-                  {group.files.map((file, fileIndex) => (
-                    <div key={fileIndex} className="expanded-item">
-                      {file.type?.startsWith('image/') ? (
-                        <img src={file.data as string} alt={`File ${fileIndex}`} />
-                      ) : (
-                        <video src={file.data as string} controls />
-                      )}
-                      <div className="expanded-item-controls">
-                        <a 
-                          href={file.data as string}
-                          download={file.name}
-                          className="download-button"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          Download
-                        </a>
-                        <button 
-                          className="delete-button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (window.confirm('Are you sure you want to delete this file?')) {
-                              deleteFile(index + startIndex, fileIndex);
-                            }
-                          }}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {totalPages > 1 && (
-        <div className="pagination">
-          {Array.from({ length: totalPages }, (_, i) => (
-            <button
-              key={i + 1}
-              onClick={() => setCurrentPage(i + 1)}
-              className={`pagination-button ${currentPage === i + 1 ? 'active' : ''}`}
-            >
-              {i + 1}
-            </button>
-          ))}
-        </div>
-      )}
+      ))}
     </div>
   );
 };
