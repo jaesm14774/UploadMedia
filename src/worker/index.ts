@@ -58,7 +58,7 @@ app.use('/api/*', cors())
 app.route('/api', app)
 
 // 靜態資源處理
-app.get('/*', serveStatic({ root: './dist' }))
+app.get('/*', serveStatic())
 
 // 如果靜態資源未找到，返回 index.html
 app.get('*', async (c) => {
